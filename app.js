@@ -34,21 +34,18 @@ const doc3 = new Item({
 })
 
 const defaultItems = [doc1, doc2, doc3];
-Item.insertMany(defaultItems);
 
 app.get("/", function(req, res) {
   Item.find({}).exec()
     .then(foundItems => {
       // Show default items only on the first time access
       if (foundItems.length === 0) {
+        console.log("Successfully saved default items to DB.");
         return Item.insertMany(defaultItems);
       }
       return foundItems;
     })
     .then(items => {
-      if (Array.isArray(items)) {
-        console.log("Successfully saved default items to DB.");
-      }
       res.render("list", { listTitle: "Today", newListItems: items });
     })
     .catch(err => {
@@ -57,23 +54,52 @@ app.get("/", function(req, res) {
     });
 });
 
-
-
 app.post("/", function(req, res){
 
-  const item = req.body.newItem;
+  const itemName = req.body.newItem;
 
-  if (req.body.list === "Work") {
-    workItems.push(item);
-    res.redirect("/work");
-  } else {
-    items.push(item);
+  const item = new Item({
+    name: itemName
+  });
+
+  if (listName === "Today"){
+    item.save();
     res.redirect("/");
+  } else {
+      List.findOne({name: listName}, function(err, foundList){
+        foundList.items.push(item);
+        foundList.save();
+        res.redirect("/" + listName);
+    });
   }
 });
 
-app.get("/work", function(req,res){
-  res.render("list", {listTitle: "Work List", newListItems: workItems});
+//delete when check box clicked
+app.post("/delete", function(req, res){
+  const checkedItemId = req.body.checkbox;
+  const listName = req.body.listName;
+
+  if (listName === "Today") {
+    Item.findByIdAndRemove(checkedItemId)
+    .then(result => {
+      if (result) {
+        console.log("Successfully deleted checked item.");
+      } else {
+        console.log("Item not found.");
+      }
+      res.redirect("/");
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).send("An error occurred.");
+    });
+  } else {
+    List.findOneAndUpdate({name: listName}, {$pull: {items: {_id: checkedItemId}}}, function(err, foundList){
+      if (!err){
+        res.redirect("/" + listName);
+      }
+    });
+  }
 });
 
 app.get("/about", function(req, res){
