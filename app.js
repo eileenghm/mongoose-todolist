@@ -37,10 +37,27 @@ const defaultItems = [doc1, doc2, doc3];
 Item.insertMany(defaultItems);
 
 app.get("/", function(req, res) {
-
-const day = date.getDate();
-  res.render("list", {listTitle: day, newListItems: defaultItems});
+  Item.find({}).exec()
+    .then(foundItems => {
+      // Show default items only on the first time access
+      if (foundItems.length === 0) {
+        return Item.insertMany(defaultItems);
+      }
+      return foundItems;
+    })
+    .then(items => {
+      if (Array.isArray(items)) {
+        console.log("Successfully saved default items to DB.");
+      }
+      res.render("list", { listTitle: "Today", newListItems: items });
+    })
+    .catch(err => {
+      console.error(err);
+      res.status(500).send("An error occurred.");
+    });
 });
+
+
 
 app.post("/", function(req, res){
 
